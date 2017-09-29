@@ -3,9 +3,14 @@ import os
 import re
 from bs4 import BeautifulSoup
 import gensim
+from pyvi.pyvi import ViTokenizer
+from sklearn.externals import joblib
+import numpy as np
 
 import utils
 from io import open
+
+WORD_SIZE = 20
 
 def clean_str_vn(string):
     """
@@ -45,7 +50,6 @@ def docs_to_sentences(docs):
     sentenses = []
     for doc in docs:
         sens_in_doc = doc[0].split('\n')    # list cac cau cua 1 van ban
-        print "aaa ", sens_in_doc
         sentenses.append(sens_in_doc)
     return sentenses # list chua list cac cau cua nhieu van ban
 def getlist(sentences):
@@ -64,31 +68,56 @@ def getlist(sentences):
             if len(words_clean)>0:
                 list_sens.append(words_clean) # list_sens la 1 list chua cac list tu da tach trong cau
     return list_sens
+
+def load_model(model):
+    print('loading model ...')
+    if os.path.isfile(model):
+        return joblib.load(model)
+    else:
+        return None
+
+
+# def get_default_value:
+#     return np.zeros((WORD_SIZE))
+
 if __name__ == '__main__':
-    docs = parse_training_data('data2', 'data_clean')
-    sentences = docs_to_sentences(docs)
-    print sentences
-    list_sens = getlist(sentences)
-    print "\n... ", list_sens
+
     # model = gensim.models.Word2Vec(list_sens, size=100, window=2, min_count=3, workers=4, sg=1)
-    model = gensim.models.Word2Vec(min_count=1, size=20, window=2, sg=1, iter=10)
-    model.build_vocab(list_sens)
+    model = load_model('model/model.pkl')
+    if model==None:
+        docs = parse_training_data('data_raw', 'data_clean')
+        sentences = docs_to_sentences(docs)
+        list_sens = getlist(sentences)
+        model = gensim.models.Word2Vec(min_count=1, size=WORD_SIZE, window=2, sg=1, iter=10)
+        model.build_vocab(list_sens)
     # model.build_vocab([s.encode('utf-8').split() for s in sentences])
     # sentences = [s.encode('utf-8').split() for s in sentences]
-    model.train(list_sens, total_examples=model.corpus_count, epochs=model.iter)
-    # print"a aaaaaaaaaaaa ",(model[u'UBND'])
-    kq = model.most_similar(positive=[u'công_ty'],topn=5)
-    for i in range(len(kq)):
-        print "a ",kq[i][0]
+        model.train(list_sens, total_examples=model.corpus_count, epochs=model.iter)
+        joblib.dump(model,'model/model.pkl')
 
-    kq2 = model.most_similar(positive=[u'xây_dựng'], topn=5)
-    for i in range(len(kq2)):
-        print "b ", kq2[i][0]
-    # print kq[i][1]
-    # model.build_vocab([[u'zzz']], update=True)
-    # model.train([[u'zzz']], total_examples=model.corpus_count, epochs=model.iter)
-    # print(model[u'jumps'])
-    # print(model[u'zzz'])
-    # print model.similarity('em', 'tinh')
-    # model.most_similar(positive=['woman', 'king'], negative=['man'])
-    # print model.most_similar(positive=['woman'])
+
+    while(1):
+        ex = raw_input("Nhap 1 tu: ")
+        if ex.lower()=='q':
+            break
+        ex = unicode(ex, encoding='utf-8')
+        ex = ViTokenizer.tokenize(ex).lower()
+
+        try:
+            kq = model.most_similar(positive=[ex],topn=5)
+            for i in range(len(kq)):
+                print "a ", kq[i][0]
+        except Exception as e:
+            print e.message
+
+
+    # kq1 = model.most_similar(positive=[u'công_an'], topn=5)
+    # for i in range(len(kq1)):
+    #     print " ", kq1[i][0]
+    # kq2 = model.most_similar(positive=[u'kiểm_tra'], topn=5)
+    # for i in range(len(kq2)):
+    #     print kq2[i][0]
+    # kq3 = model.most_similar(positive=[u'ngân_hàng'], topn=5)
+    # for i in range(len(kq3)):
+    #     print " ",kq3[i][0]
+
